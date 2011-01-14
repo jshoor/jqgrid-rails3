@@ -57,8 +57,14 @@ class <%= class_name.pluralize %>Controller < ApplicationController
     conditions={:page => current_page, :per_page => rows_per_page}
     conditions[:order] = params["sidx"] + " " + params["sord"] unless (params[:sidx].blank? || params[:sord].blank?)
     
-    if params[:_search] == "true"
-      conditions[:conditions]=filter_by_conditions(index_columns)
+    if params[:_search] != "false"
+      if !params[:searchField].nil?
+        conditions[:conditions]=filter_by_single_search
+      elsif !params[:filters].nil?
+        conditions[:conditions]=filter_by_advanced_search
+      else
+        conditions[:conditions]=filter_by_conditions(index_columns)
+      end
     end
     
     @<%= plural_name %>=<%= camel %>.paginate(conditions)

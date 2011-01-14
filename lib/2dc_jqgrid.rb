@@ -37,7 +37,7 @@ module Jqgrid
           :inline_edit_handler => 'null',         
           :add                 => 'false',
           :delete              => 'false',
-          :search              => 'true',
+          :search              => 'toolbar',
           :edit                => 'false',          
           :view                => 'false',          
           :inline_edit         => 'false',
@@ -101,10 +101,11 @@ module Jqgrid
       # Enable filtering (by default)
       search = ""
       filter_toolbar = ""
-      if options[:search] == 'true'
+      if options[:search] == 'toolbar'
         search = %Q/.navButtonAdd("##{id}_pager",{caption:"",title:$.jgrid.nav.searchtitle, buttonicon :'ui-icon-search', onClickButton:function(){ mygrid[0].toggleToolbar() } })/
         filter_toolbar = "mygrid.filterToolbar();"
         filter_toolbar << "mygrid[0].toggleToolbar()"
+
       end
      
       # Enable sortableRows
@@ -308,6 +309,11 @@ module Jqgrid
         )
       end
 
+      search_option = false
+      if options[:search] == "single" or options[:search] == "multiple"
+        search_option = true
+      end
+
       # Generate required Javascript & html to create the jqgrid
       %Q(
         <script type="text/javascript">
@@ -348,13 +354,15 @@ module Jqgrid
               caption: "#{title}"             
             })
             .navGrid('##{id}_pager',
-              {edit:#{edit_button},add:#{options[:add]},del:#{options[:delete]},view:#{options[:view]},search:false,refresh:true},
+              {edit:#{edit_button},add:#{options[:add]},del:#{options[:delete]},view:#{options[:view]},search:#{search_option},refresh:true},
               // Edit options
               {closeOnEscape:true,modal:true,recreateForm:#{options[:recreateForm]},width:#{options[:form_width]},closeAfterEdit:true,afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'edit');}},
               // Add options
               {closeOnEscape:true,modal:true,recreateForm:#{options[:recreateForm]},width:#{options[:form_width]},closeAfterAdd:true,afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'add');}},
               // Delete options
               {closeOnEscape:true,modal:true,afterSubmit:function(r,data){return #{options[:error_handler_return_value]}(r,data,'delete');}}
+              // Search options
+              #{", {multipleSearch : true}" unless options[:search] != 'multiple'}
             )
             #{search}
             #{multihandler}
@@ -520,4 +528,56 @@ module JqgridFilter
     end
     conditions.chomp("AND ")
   end
+
+  def filter_by_single_search
+    condition_builder(params["searchField"],params["searchOper"],params["searchString"])
+  end
+
+  def filter_by_advanced_search
+    conditions = ""
+    conds = JSON.parse(params[:filters])
+    conds["rules"].each do |rule|
+      conditions << condition_builder(rule["field"],rule["op"],rule["data"])
+      conditions << " #{conds["groupOp"]} "
+    end
+      conditions.chomp(" #{conds["groupOp"]} ")
+  end
+
+  private
+  def condition_builder(field, operator, value)
+      # bw - begins with ( LIKE val% )
+      # eq - equal ( = )
+      # ne - not equal ( <> )
+      # lt - little ( < )
+      # le - little or equal ( <= )
+      # gt - greater ( > )
+      # ge - greater or equal ( >= )
+      # ew - ends with (LIKE %val )
+      # cn - contain (LIKE %val% )
+      conditions = "#{field}"
+      case operator
+        when 'bw'
+          conditions << " LIKE '#{value}%'"
+        when 'eq'
+          conditions << " = '#{value}'"
+        when 'ne'
+          conditions << " <> '#{value}'"
+        when 'lt'
+          conditions << " < '#{value}'"
+        when 'le'
+          conditions << " <= '#{value}'"
+        when 'gt'
+          conditions << " > '#{value}'"
+        when 'ge'
+          conditions << " <= '#{value}'"
+        when 'ew'
+          conditions << " LIKE '%#{value}'"
+        when 'cn'
+          conditions << " LIKE '%#{value}%'"
+        else
+          conditions << " = '#{value}'"
+      end
+
+  end
+
 end
