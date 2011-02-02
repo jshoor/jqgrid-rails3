@@ -59,11 +59,11 @@ class <%= class_name.pluralize %>Controller < ApplicationController
     
     if params[:_search] != "false"
       if !params[:searchField].nil?
-        conditions[:conditions]=filter_by_single_search
+        conditions = conditions.merge filter_by_single_search(<%= camel %>)
       elsif !params[:filters].nil?
-        conditions[:conditions]=filter_by_advanced_search
+        conditions = conditions.merge filter_by_advanced_search(<%= camel %>)
       else
-        conditions[:conditions]=filter_by_conditions(index_columns)
+        conditions = conditions.merge filter_by_conditions(index_columns, <%= camel %>)
       end
     end
     

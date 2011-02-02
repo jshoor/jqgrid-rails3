@@ -521,29 +521,49 @@ module JqgridJson
 end
 
 module JqgridFilter
-  def filter_by_conditions(columns)
-    conditions = ""
+  def filter_by_conditions(columns, object)
+    conditions = {:conditions => "", :joins => ""}
     columns.each do |column|
-      conditions << "#{column} LIKE '%#{params[column]}%' AND " unless params[column].nil?
+      unless params[column].nil?
+         conditions[:conditions] << "#{column} LIKE '%#{params[column]}%' AND "
+         conditions[:joins] << join_builder(column, object)
+      end
     end
-    conditions.chomp("AND ")
+    conditions[:conditions] = conditions[:conditions].chomp("AND ")
+    return conditions
   end
 
-  def filter_by_single_search
-    condition_builder(params["searchField"],params["searchOper"],params["searchString"])
+  def filter_by_single_search(object)
+    return {:conditions => condition_builder(params["searchField"],
+        params["searchOper"],params["searchString"]),
+        :joins => join_builder(params["searchField"], object)}
   end
 
-  def filter_by_advanced_search
-    conditions = ""
+  def filter_by_advanced_search(object)
+    conditions = {:conditions => "", :joins => ""}
     conds = JSON.parse(params[:filters])
     conds["rules"].each do |rule|
-      conditions << condition_builder(rule["field"],rule["op"],rule["data"])
-      conditions << " #{conds["groupOp"]} "
+      conditions[:conditions] << condition_builder(rule["field"],rule["op"],rule["data"])
+      conditions[:conditions] << " #{conds["groupOp"]} "
+      conditions[:joins] << join_builder(rule["field"], object)
     end
-      conditions.chomp(" #{conds["groupOp"]} ")
+    conditions[:conditions] = conditions[:conditions].chomp(" #{conds["groupOp"]} ")
+    return conditions
   end
 
   private
+  def join_builder(column, object)
+    if column.instance_of?(String) && column.to_s.include?('.')
+      association_name = column.to_s.split('.').first
+      return "inner join " +
+        object.first.send(association_name).class.quoted_table_name + " " +
+        association_name +" on  " + object.quoted_table_name + "." +
+        association_name +"_id = " + association_name +".id "
+    else
+      return ""
+    end
+  end
+
   def condition_builder(field, operator, value)
       # bw - begins with ( LIKE val% )
       # eq - equal ( = )
